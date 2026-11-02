@@ -1,0 +1,58 @@
+vllm:
+  image:
+    repository: vllm/vllm-openai
+    tag: latest
+    pullPolicy: IfNotPresent
+
+  model: Qwen/Qwen2.5-Coder-1.5B-Instruct
+  maxModelLen: 4096
+  gpuMemoryUtilization: 0.85
+  dtype: auto
+  trustRemoteCode: false
+
+  service:
+    type: NodePort
+    port: 8000
+    nodePort: 30080
+
+  resources:
+    requests:
+      cpu: "4"
+      memory: 14Gi
+      nvidia.com/gpu: 1
+    limits:
+      cpu: "4"
+      memory: 14Gi
+      nvidia.com/gpu: 1
+
+  shm:
+    sizeLimit: 4Gi
+
+  persistence:
+    enabled: false
+    size: 20Gi
+    storageClass: ""
+
+webui:
+  image:
+    repository: ghcr.io/open-webui/open-webui
+    tag: main
+    pullPolicy: Always
+
+  service:
+    type: NodePort
+    port: 8080
+    nodePort: 30000
+
+  persistence:
+    enabled: true
+    size: 10Gi
+    storageClass: ""
+
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 2Gi

@@ -1,0 +1,59 @@
+I want to create a complete GitOps repository for deploying a production-ready, GPU-accelerated LLM inference platform on lightweight Kubernetes (K3s) with an interactive ChatGPT-style Web UI (Open WebUI). 
+
+Generate the entire project directory tree and all required file contents step-by-step:
+
+### 1. Target Tech Stack & Architecture:
+- Host OS: Ubuntu 22.04 LTS on GCP Compute Engine with NVIDIA GPU (L4 or T4)
+- Container Runtime & Orchestrator: K3s with embedded containerd configured with the NVIDIA Container Toolkit and NVIDIA K8s Device Plugin DaemonSet
+- LLM Serving Engine: vLLM (`vllm/vllm-openai:latest`) running `Qwen/Qwen2.5-Coder-1.5B-Instruct`
+- Frontend Web UI: Open WebUI (`ghcr.io/open-webui/open-webui:main`) connected to vLLM via Kubernetes internal DNS service (`http://vllm-service:8000/v1`)
+- Packaging: Helm 3 chart
+- CI/CD: GitHub Actions workflow deploying via SSH
+
+### 2. Files to Generate:
+
+#### A. Host Automation Scripts (`scripts/`)
+1. `scripts/01-install-gpu-drivers.sh`:
+   - Bash script with `set -euo pipefail`
+   - Updates packages and installs `ubuntu-drivers-common`, build essentials, and kernel headers
+   - Automatically detects and installs the appropriate NVIDIA driver using `ubuntu-drivers install`
+   - Prompts for a reboot.
+2. `scripts/02-setup-k3s-gpu.sh`:
+   - Verifies `nvidia-smi` works.
+   - Disables swap.
+   - Installs NVIDIA Container Toolkit, configures containerd runtime.
+   - Installs K3s using `--default-runtime nvidia --disable traefik`.
+   - Sets up non-root `$HOME/.kube/config` permissions.
+   - Installs Helm 3.
+   - Deploys the official NVIDIA Kubernetes Device Plugin DaemonSet.
+   - Verifies `nvidia.com/gpu` capacity appears under `kubectl get nodes -o json`.
+3. `scripts/test-inference.sh`:
+   - Probes the `/health` endpoint until vLLM model weights load into VRAM.
+   - Executes a test `curl` POST request to the completions API and pipes to `jq`.
+
+#### B. Helm Chart (`helm/vllm-stack/`)
+1. `Chart.yaml`: metadata for `vllm-stack`.
+2. `values.yaml`:
+   - Image configs for vLLM and Open WebUI
+   - Model parameters: model name `Qwen/Qwen2.5-Coder-1.5B-Instruct`, context length 4096, GPU memory utilization 0.85
+   - Resources: requests/limits for 1 GPU (`nvidia.com/gpu: 1`), 14Gi RAM, 4 CPUs
+   - Shared memory (`/dev/shm`) emptyDir mount (size: 4Gi) to prevent PyTorch deadlocks
+   - NodePort services: Port 8000 (vLLM, nodePort 30080) and Port 8080 (WebUI, nodePort 30000)
+3. `templates/vllm-deployment.yaml`: Deployment spec mounting `/dev/shm` and setting resource limits.
+4. `templates/vllm-service.yaml`: NodePort/ClusterIP service mapping port 8000.
+5. `templates/webui-deployment.yaml`: Deployment for Open WebUI setting `OPENAI_API_BASE_URL` to internal vLLM service URL and `OPENAI_API_KEY="none"`.
+6. `templates/webui-service.yaml`: Service exposing Open WebUI externally on NodePort 30000.
+
+#### C. CI/CD Pipeline (`.github/workflows/deploy.yml`)
+- Trigger: on push to `main`
+- Steps:
+  1. Checkout code
+  2. Install Helm
+  3. Run `helm lint helm/vllm-stack`
+  4. SSH into GCP VM using `appleboy/ssh-action` (referencing secrets `GCP_INSTANCE_IP`, `GCP_VM_USER`, `GCP_SSH_PRIVATE_KEY`)
+  5. Deploy/upgrade the Helm release `vllm-stack` into namespace `ml-serving` with `--wait --timeout 10m`.
+
+#### D. Documentation (`README.md`)
+- Professional portfolio README explaining architecture, GPU passthrough mechanism (CDI/Device Plugin), deployment steps, curl commands, and how to access the Open WebUI in browser.
+
+Please write clean, modular, production-ready code for every file.

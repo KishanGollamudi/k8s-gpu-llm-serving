@@ -1,0 +1,29 @@
+{{- if .Values.vllm.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "vllm-stack.fullname" . }}-model-cache
+spec:
+  accessModes: [ReadWriteOnce]
+  {{- if .Values.vllm.persistence.storageClass }}
+  storageClassName: {{ .Values.vllm.persistence.storageClass | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.vllm.persistence.size }}
+---
+{{- end }}
+{{- if .Values.webui.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "vllm-stack.fullname" . }}-webui
+spec:
+  accessModes: [ReadWriteOnce]
+  {{- if .Values.webui.persistence.storageClass }}
+  storageClassName: {{ .Values.webui.persistence.storageClass | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.webui.persistence.size }}
+{{- end }}

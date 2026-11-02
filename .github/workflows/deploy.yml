@@ -1,0 +1,42 @@
+name: Deploy vLLM stack
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: latest
+
+      - name: Lint Helm chart
+        run: helm lint helm/vllm-stack
+
+      - name: Deploy with Helm over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.GCP_INSTANCE_IP }}
+          username: ${{ secrets.GCP_VM_USER }}
+          key: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
+          script_stop: true
+          script: |
+            set -e
+            cd "$HOME/k8s-gpu-llm-serving"
+            git fetch --prune origin
+            git reset --hard origin/main
+            sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml helm upgrade --install vllm-stack helm/vllm-stack \
+              --namespace ml-serving \
+              --create-namespace \
+              --wait \
+              --timeout 10m
