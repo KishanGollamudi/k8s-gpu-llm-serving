@@ -1,4 +1,4 @@
-```markdown
+
 # Cloud-Native GPU LLM Serving & Edge Inference Stack on K3s
 
 A GitOps-driven, production-grade deployment of **vLLM / Ollama** and **Open WebUI** on Kubernetes (K3s), architected for both cloud compute instances (GCP L4/T4) and heterogeneous bare-metal edge environments with constrained system storage.
